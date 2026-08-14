@@ -1,0 +1,60 @@
+﻿/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* 作者全平台ID：宋夏天Dazzle；公众号：送你整个夏天 */
+/* 电碳协同驾驶舱 v2 主题（§5.1 视觉基调）。不使用远程字体，全部使用系统字体回退。 */
+:root {
+  color-scheme: dark;
+
+  /* 主背景与层次 */
+  --cockpit-bg: #070A0E;
+  --cockpit-bg-panel: #0D1218;
+  --cockpit-border: #202833;
+
+  /* 文字 */
+  --cockpit-text-1: #E8EEF3;
+  --cockpit-text-2: #91A0AE;
+  --cockpit-text-3: #5C6A7D;
+
+  /* 语义色（数量受控） */
+  --cockpit-power: #35D6C4;
+  --cockpit-carbon: #7FCB68;
+  --cockpit-value: #D8AD60;
+  --cockpit-market: #68A2D8;
+  --cockpit-warn: #E7B34F;
+  --cockpit-alert: #F0645B;
+
+  background: #070A0E;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #070A0E;
+  color: var(--cockpit-text-1);
+}
+
+/* 数字统一使用系统等宽回退，不依赖远程字体 */
+.num-font,
+.cockpit-num {
+  font-family: "Roboto Mono", "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 减少动效偏好（§5.5） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}

@@ -1,0 +1,1205 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>荷碳 · 电碳协同驾驶舱</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 原型参考文件（已废弃）：生产入口已迁移至 Vue 组件 src/views/CockpitShell.vue，本文件不再作为生产页面使用。 -->
+<!-- 已移除远程 Google Fonts（§9.3-8），改用系统字体回退。 -->
+<style>
+  :root{
+    --bg: #0A0D12;
+    --bg-panel: #10151D;
+    --bg-panel-alt: #141A23;
+    --border: #202836;
+    --border-soft: #1A212C;
+    --text-1: #EAF0F5;
+    --text-2: #92A0B3;
+    --text-3: #5C6A7D;
+
+    --power: #35D6C4;
+    --power-dim: rgba(53,214,196,0.14);
+    --carbon: #8FD16A;
+    --carbon-dim: rgba(143,209,106,0.14);
+    --gold: #E3B564;
+    --gold-dim: rgba(227,181,100,0.14);
+    --alert: #FF6B5E;
+    --alert-dim: rgba(255,107,94,0.14);
+    --warn: #F0B94A;
+    --warn-dim: rgba(240,185,74,0.14);
+    --blue: #6FA8E0;
+    --blue-dim: rgba(111,168,224,0.14);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--bg); color:var(--text-1); font-family:'Noto Sans SC', sans-serif; -webkit-font-smoothing:antialiased;}
+  body{
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(53,214,196,0.05), transparent 40%),
+      radial-gradient(circle at 90% 10%, rgba(227,181,100,0.04), transparent 35%);
+    padding: 16px 22px 30px;
+    min-height:100vh;
+  }
+  .num{font-family:'Oswald', 'Roboto Mono', sans-serif;}
+  .mono{font-family:'Roboto Mono', monospace;}
+
+  /* ===== TOP BAR ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 4px 4px 14px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 14px;
+  }
+  .topbar-left{display:flex; align-items:center; gap:16px;}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:30px; height:30px; border-radius:8px;
+    background: conic-gradient(from 220deg, var(--power), var(--carbon), var(--gold), var(--power));
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 0 20px rgba(53,214,196,0.25);
+  }
+  .brand-mark::after{content:''; width:12px; height:12px; border-radius:50%; background:var(--bg);}
+  .brand-text .t1{font-size:15px; font-weight:700; letter-spacing:0.5px;}
+  .brand-text .t2{font-size:11px; color:var(--text-3); letter-spacing:1px;}
+  .scenario-tabs{display:flex; gap:2px; background:var(--bg-panel); border:1px solid var(--border); border-radius:9px; padding:3px;}
+  .scenario-tabs span{padding:6px 14px; font-size:12.5px; color:var(--text-2); border-radius:6px; cursor:pointer;}
+  .scenario-tabs span.active{background:var(--power-dim); color:var(--power); font-weight:500;}
+  .topbar-right{display:flex; align-items:center; gap:14px;}
+  .clock{text-align:right;}
+  .clock .d{font-size:13px; color:var(--text-1); font-weight:500;}
+  .clock .w{font-size:11px; color:var(--text-3);}
+  .pill{
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; color:var(--text-2); padding:7px 12px;
+    border:1px solid var(--border); border-radius:8px; background:var(--bg-panel);
+  }
+  .btn-primary{
+    background: linear-gradient(135deg, var(--power), #23B8A8);
+    color:#04211D; font-weight:700; font-size:12.5px;
+    padding:9px 16px; border-radius:8px; border:none; cursor:pointer;
+    box-shadow:0 4px 14px rgba(53,214,196,0.25);
+    letter-spacing:0.3px;
+  }
+  .dot-live{width:6px; height:6px; border-radius:50%; background:var(--carbon); box-shadow:0 0 6px var(--carbon); animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  /* ===== TICKER ===== */
+  .ticker{
+    display:flex; align-items:center; gap:24px; overflow:hidden;
+    font-size:12px; color:var(--text-2); padding:8px 14px; margin-bottom:14px;
+    background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:9px;
+  }
+  .ticker b{color:var(--text-1); font-weight:500;}
+  .ticker .sep{color:var(--text-3);}
+  .ticker .up{color:var(--carbon);} .ticker .dn{color:var(--alert);}
+
+  /* ===== HERO METRICS ===== */
+  .hero-row{
+    display:grid; grid-template-columns: repeat(5, 1fr); gap:12px; margin-bottom:14px;
+  }
+  .hero-card{
+    background: linear-gradient(160deg, var(--bg-panel-alt), var(--bg-panel));
+    border:1px solid var(--border); border-radius:12px; padding:14px 16px 12px;
+    position:relative; overflow:hidden;
+  }
+  .hero-card.money{border-color:rgba(227,181,100,0.35);}
+  .hero-card .glow{position:absolute; top:-40px; right:-40px; width:120px; height:120px; border-radius:50%; filter:blur(30px); opacity:0.5;}
+  .hero-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px;}
+  .hero-label{font-size:12px; color:var(--text-2); font-weight:500; letter-spacing:0.2px;}
+  .hero-icon{width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px;}
+  .hero-value{font-size:26px; font-weight:600; letter-spacing:0.3px; line-height:1;}
+  .hero-value .unit{font-size:12px; color:var(--text-2); font-weight:400; margin-left:3px; font-family:'Noto Sans SC';}
+  .hero-sub{display:flex; align-items:center; justify-content:space-between; margin-top:8px;}
+  .hero-delta{font-size:11px; font-weight:500; padding:2px 6px; border-radius:5px;}
+  .hero-delta.up{color:var(--carbon); background:var(--carbon-dim);}
+  .hero-delta.dn{color:var(--alert); background:var(--alert-dim);}
+  .hero-delta.warn{color:var(--warn); background:var(--warn-dim);}
+  .hero-note{font-size:10px; color:var(--text-3);}
+  .spark{width:100%; height:22px; margin-top:6px;}
+
+  /* ===== COCKPIT GRID: 左 / 中 / 右 ===== */
+  .cockpit-grid{
+    display:grid;
+    grid-template-columns: 1fr 1.85fr 1fr;
+    gap:34px;
+    margin-bottom:14px;
+    min-height: 560px;
+  }
+  .col-left, .col-right{display:flex; flex-direction:column; gap:14px; min-width:0;}
+  .col-center{display:flex; flex-direction:column; min-width:0;}
+
+  /* ===== MAP PANEL ===== */
+  .map-panel{
+    flex:1;
+    background:var(--bg-panel);
+    border:1px solid var(--border-soft);
+    border-radius:12px;
+    position:relative;
+    overflow:hidden;
+    min-height: 560px;
+    margin: 0 10px;            /* 地球仪与左右面板额外留白，避免视觉重叠 */
+  }
+  /* 边缘晕影：收束地球大气辉光，让球体与两侧内容视觉上彻底分离 */
+  .map-panel::after{
+    content:'';
+    position:absolute; inset:0;
+    pointer-events:none;
+    z-index:4;
+    border-radius:12px;
+    box-shadow: inset 0 0 64px 10px rgba(5,8,12,0.5);
+  }
+  .map-head{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px;
+    z-index:5;
+    pointer-events:none;
+    background: linear-gradient(to bottom, rgba(10,13,18,0.85), transparent);
+  }
+  .map-title{
+    display:flex; align-items:center; gap:8px;
+    font-size:13.5px; font-weight:700; color:var(--text-1);
+  }
+  .map-title .bar{width:3px; height:14px; border-radius:2px; background:var(--power);}
+  .map-title .tag{
+    font-size:10.5px; font-weight:500; padding:2px 8px; border-radius:5px;
+    background:var(--power-dim); color:var(--power);
+  }
+  .map-meta{font-size:11px; color:var(--text-3);}
+  .map-frame{
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse at center, #0E141D 0%, #06090C 100%);
+  }
+  .map-frame iframe{
+    position:absolute; inset:0; width:100%; height:100%;
+    border:0; background: transparent;
+  }
+  .map-foot{
+    position:absolute; bottom:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:10px;
+    z-index:5;
+    pointer-events:none;
+    background: linear-gradient(to top, rgba(10,13,18,0.7), transparent);
+  }
+  .map-tab{
+    font-size:11.5px; color:var(--text-2); padding:5px 12px;
+    border-radius:6px; background: rgba(20,26,35,0.6);
+    border:1px solid transparent;
+  }
+  .map-tab.active{background:var(--power-dim); color:var(--power); border-color:var(--power);}
+
+  /* ===== SECTION HEADER ===== */
+  .sec-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .sec-title{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--text-1);}
+  .sec-title .bar{width:3px; height:14px; border-radius:2px;}
+  .sec-title .tag{font-size:10.5px; font-weight:500; padding:2px 8px; border-radius:5px; margin-left:4px;}
+  .sec-meta{font-size:11px; color:var(--text-3);}
+  .panel{background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:12px; padding:14px;}
+
+  /* ===== DEVICE LIST (in left/right panel) ===== */
+  .dev-row{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 0; border-bottom:1px dashed var(--border-soft);
+    cursor:pointer; transition: background 0.15s;
+  }
+  .dev-row:hover{background: rgba(53,214,196,0.05);}
+  .dev-row:last-child{border-bottom:none;}
+  .dev-dot{width:7px; height:7px; border-radius:50%; box-shadow:0 0 6px currentColor; flex-shrink:0;}
+  .dev-dot.status-online{background:var(--power); color:var(--power);}
+  .dev-dot.status-warning{background:var(--warn); color:var(--warn);}
+  .dev-dot.status-alert{background:var(--alert); color:var(--alert);}
+  .dev-dot.status-offline{background:var(--text-3); color:var(--text-3);}
+  .dev-info{flex:1; min-width:0;}
+  .dev-name{font-size:12px; font-weight:500; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .dev-region{font-size:10px; color:var(--text-3);}
+  .dev-load{display:flex; align-items:center; gap:6px; font-size:11px;}
+  .dev-load .bar-mini{width:36px; height:4px; background:var(--border-soft); border-radius:2px; overflow:hidden;}
+  .dev-load .bar-mini > i{display:block; height:100%; border-radius:2px;}
+  .dev-load .num{color:var(--text-1); font-weight:600; min-width:28px; text-align:right;}
+
+  /* ===== MARKET PANEL ===== */
+  .mkt-stat-row{display:flex; gap:8px; margin-bottom:10px;}
+  .mkt-stat{flex:1; background:var(--bg-panel-alt); border:1px solid var(--border-soft); border-radius:8px; padding:7px 9px;}
+  .mkt-stat .l{font-size:10px; color:var(--text-3); margin-bottom:2px;}
+  .mkt-stat .v{font-size:14px; font-weight:600;}
+  .legend{display:flex; gap:10px; font-size:10px; color:var(--text-2); margin-bottom:5px;}
+  .legend span{display:flex; align-items:center; gap:4px;}
+  .legend i{width:8px; height:2.5px; border-radius:2px; display:inline-block;}
+
+  /* carbon list */
+  .carbon-list{display:flex; flex-direction:column; gap:6px; margin-top:8px;}
+  .carbon-row{display:flex; align-items:center; justify-content:space-between; font-size:11.5px; padding:5px 0; border-bottom:1px dashed var(--border-soft);}
+  .carbon-row:last-child{border-bottom:none;}
+  .carbon-row .l{color:var(--text-2);}
+  .carbon-row .v{font-weight:600;}
+
+  /* ===== AI FEED ===== */
+  .ai-feed{display:flex; flex-direction:column; gap:8px; max-height:240px; overflow:hidden;}
+  .ai-item{background:var(--bg-panel-alt); border:1px solid var(--border-soft); border-left:3px solid var(--power); border-radius:8px; padding:9px 10px;}
+  .ai-item.gold{border-left-color:var(--gold);}
+  .ai-item-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;}
+  .ai-item-title{font-size:12px; font-weight:600;}
+  .ai-conf{font-size:10px; color:var(--text-3);}
+  .ai-item-body{font-size:11px; color:var(--text-2); line-height:1.5; margin-bottom:6px;}
+  .ai-item-foot{display:flex; align-items:center; justify-content:space-between;}
+  .ai-gain{font-size:11px; font-weight:700; color:var(--gold);}
+  .btn-mini{font-size:10px; font-weight:600; padding:4px 10px; border-radius:5px; border:1px solid var(--power); color:var(--power); background:transparent; cursor:pointer;}
+  .btn-mini:hover{background:var(--power-dim);}
+
+  /* ===== ALERT ===== */
+  .alert-item{display:flex; gap:8px; padding:8px 0; border-bottom:1px solid var(--border-soft);}
+  .alert-item:last-child{border-bottom:none;}
+  .alert-sev{width:4px; border-radius:2px; flex-shrink:0;}
+  .alert-sev.high{background:var(--alert);}
+  .alert-sev.mid{background:var(--warn);}
+  .alert-sev.low{background:var(--blue);}
+  .alert-txt .t{font-size:11.5px; font-weight:500; margin-bottom:2px;}
+  .alert-txt .m{font-size:10.5px; color:var(--text-3);}
+  .alert-time{font-size:10px; color:var(--text-3); margin-left:auto; white-space:nowrap;}
+
+  /* ===== DEVICE DETAIL MODAL ===== */
+  .detail-mask{
+    position:fixed; inset:0;
+    background:rgba(5,8,12,0.5);
+    backdrop-filter:blur(2px);
+    z-index:50;
+    display:none;
+    align-items:center; justify-content:center;
+  }
+  .detail-mask.is-open{display:flex;}
+  .detail-card{
+    width:380px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:18px 20px 16px;
+    box-shadow:0 16px 48px rgba(0,0,0,0.6);
+    position:relative;
+  }
+  .detail-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+  .detail-title{display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700;}
+  .detail-title .dot{width:9px; height:9px; border-radius:50%; box-shadow:0 0 8px currentColor;}
+  .detail-title .dot.status-online{background:var(--power); color:var(--power);}
+  .detail-title .dot.status-warning{background:var(--warn); color:var(--warn);}
+  .detail-title .dot.status-alert{background:var(--alert); color:var(--alert);}
+  .detail-title .dot.status-offline{background:var(--text-3); color:var(--text-3);}
+  .detail-id{font-size:10.5px; color:var(--text-3); font-family:'Roboto Mono', monospace;}
+  .detail-close{
+    width:28px; height:28px; border:none; border-radius:6px;
+    background:transparent; color:var(--text-2);
+    font-size:20px; line-height:1; cursor:pointer;
+  }
+  .detail-close:hover{background:rgba(255,255,255,0.08); color:var(--text-1);}
+
+  .detail-meta{
+    display:flex; align-items:center; gap:8px; margin-bottom:14px;
+    font-size:11.5px; color:var(--text-2);
+  }
+  .detail-tag{
+    background:var(--power-dim); color:var(--power);
+    padding:2px 8px; border-radius:4px; font-weight:500;
+  }
+  .detail-status{
+    padding:2px 8px; border-radius:4px; font-weight:500; margin-left:auto;
+  }
+  .detail-status.status-online{background:var(--carbon-dim); color:var(--carbon);}
+  .detail-status.status-warning{background:var(--warn-dim); color:var(--warn);}
+  .detail-status.status-alert{background:var(--alert-dim); color:var(--alert);}
+  .detail-status.status-offline{background:var(--border-soft); color:var(--text-3);}
+
+  .detail-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;
+  }
+  .detail-cell{
+    background:rgba(255,255,255,0.02);
+    border:1px solid var(--border);
+    border-radius:8px; padding:9px 11px;
+  }
+  .detail-cell.full{grid-column:1 / -1;}
+  .detail-label{font-size:10.5px; color:var(--text-3); margin-bottom:3px;}
+  .detail-value{font-size:20px; font-weight:600; line-height:1.1;}
+  .detail-value .unit{font-size:11px; color:var(--text-2); margin-left:2px; font-weight:400; font-family:'Noto Sans SC';}
+  .detail-bar{margin-top:6px; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden;}
+  .detail-bar > span{display:block; height:100%; border-radius:2px;}
+
+  .detail-foot{display:flex; gap:8px;}
+  .detail-btn{
+    flex:1; font-size:12px; font-weight:500;
+    padding:8px 12px; border-radius:7px;
+    border:1px solid var(--power); color:var(--power);
+    background:transparent; cursor:pointer;
+  }
+  .detail-btn:hover{background:var(--power-dim);}
+  .detail-btn.primary{
+    background: linear-gradient(135deg, var(--power), #23B8A8);
+    color:#04211D; border-color:transparent; font-weight:700;
+  }
+
+  /* ===== ASSET STRIP ===== */
+  .asset-strip{display:grid; grid-template-columns:repeat(6, 1fr); gap:10px;}
+  .asset-chip{
+    background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:9px;
+    padding:9px 12px; display:flex; align-items:center; gap:9px;
+  }
+  .asset-chip .ic{width:26px; height:26px; border-radius:7px; background:var(--bg-panel-alt); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--text-3);}
+  .asset-chip .v{font-size:15px; font-weight:600;}
+  .asset-chip .l{font-size:10px; color:var(--text-3);}
+
+  svg text{font-family:'Roboto Mono', monospace;}
+
+  /* ===== AI 自然语言搜索框 ===== */
+  .ai-search-overlay{
+    position:absolute; top:48px; left:50%; transform:translateX(-50%);
+    z-index:10; width:440px; max-width:88%;
+    pointer-events:auto;
+  }
+  .ai-search-box{
+    display:flex; align-items:center; gap:8px;
+    background: rgba(16,21,29,0.92);
+    backdrop-filter: blur(14px);
+    border:1px solid rgba(53,214,196,0.28);
+    border-radius:10px;
+    padding:7px 10px 7px 8px;
+    box-shadow: 0 0 28px rgba(53,214,196,0.10), 0 4px 16px rgba(0,0,0,0.5);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .ai-search-box:focus-within{
+    border-color: rgba(53,214,196,0.55);
+    box-shadow: 0 0 36px rgba(53,214,196,0.18), 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .ai-search-badge{
+    display:flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:7px; flex-shrink:0;
+    background: linear-gradient(135deg, var(--power), #23B8A8);
+    color:#04211D; font-size:11px; font-weight:700; letter-spacing:0.5px;
+    box-shadow: 0 2px 8px rgba(53,214,196,0.25);
+  }
+  .ai-search-input{
+    flex:1; min-width:0;
+    background:transparent; border:none; outline:none;
+    color:var(--text-1); font-size:13px; font-family:'Noto Sans SC', sans-serif;
+    line-height:1.4; padding:4px 0;
+  }
+  .ai-search-input::placeholder{color:var(--text-3); font-size:12.5px;}
+  .ai-search-btn{
+    flex-shrink:0;
+    background: linear-gradient(135deg, var(--power), #23B8A8);
+    color:#04211D; font-weight:600; font-size:12px;
+    padding:6px 14px; border-radius:7px; border:none; cursor:pointer;
+    box-shadow:0 2px 8px rgba(53,214,196,0.2);
+    transition: transform 0.1s;
+  }
+  .ai-search-btn:hover{transform:scale(1.04);}
+  .ai-search-btn:active{transform:scale(0.98);}
+
+  .ai-search-results{
+    margin-top:6px;
+    background: rgba(16,21,29,0.95);
+    backdrop-filter: blur(14px);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 8px 28px rgba(0,0,0,0.5);
+  }
+  .ai-result-item{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 12px; cursor:pointer;
+    border-bottom:1px solid var(--border-soft);
+    transition: background 0.12s;
+  }
+  .ai-result-item:last-child{border-bottom:none;}
+  .ai-result-item:hover{background: rgba(53,214,196,0.06);}
+  .ai-result-icon{
+    width:28px; height:28px; border-radius:7px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px;
+  }
+  .ai-result-info{flex:1; min-width:0;}
+  .ai-result-name{font-size:12.5px; font-weight:500; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ai-result-meta{font-size:10.5px; color:var(--text-3); margin-top:1px;}
+  .ai-result-coord{font-size:10px; color:var(--text-3); font-family:'Roboto Mono', monospace; flex-shrink:0;}
+  .ai-result-empty{
+    padding:16px 12px; text-align:center; font-size:12px; color:var(--text-3);
+  }
+
+  .ai-search-hint{
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    margin-top:6px; padding:0 4px;
+  }
+  .ai-search-hint > span{font-size:10.5px; color:var(--text-3); flex-shrink:0;}
+  .hint-chip{
+    font-size:10.5px; color:var(--text-2);
+    padding:3px 10px; border-radius:12px;
+    background:rgba(20,26,35,0.7);
+    border:1px solid var(--border-soft);
+    cursor:pointer; transition: all 0.12s;
+  }
+  .hint-chip:hover{
+    color:var(--power); border-color:var(--power);
+    background:var(--power-dim);
+  }
+</style>
+</head>
+<body>
+
+  <!-- ============ TOP BAR ============ -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <div class="t1">荷碳数字能源 · 电碳协同驾驶舱</div>
+          <div class="t2">HÉ TÀN · ENERGY-CARBON SYNERGY COCKPIT</div>
+        </div>
+      </div>
+      <div class="scenario-tabs">
+        <span class="active">全部场景</span>
+        <span>售电公司</span>
+        <span>工商业用户</span>
+        <span>园区聚合</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="pill"><span class="dot-live"></span> 实时接入</div>
+      <div class="pill">☀ 32°C · 杭州晴</div>
+      <div class="clock">
+        <div class="d">2026-08-09 11:13:12</div>
+        <div class="w">周日 · 平段电价</div>
+      </div>
+      <button class="btn-primary">⚡ 一键生成调度策略</button>
+    </div>
+  </div>
+
+  <!-- ============ TICKER ============ -->
+  <div class="ticker">
+    <span><b>市场播报</b></span>
+    <span class="sep">|</span>
+    <span>晚高峰储能释放策略已下发，预计节省电费 <b class="up">¥42,800</b></span>
+    <span class="sep">|</span>
+    <span>浙江碳配额结算价 <b>¥68.5/tCO₂</b> <span class="up">↑1.2%</span></span>
+    <span class="sep">|</span>
+    <span>3 个场站负荷率超 90%，建议关注需量风险</span>
+    <span class="sep">|</span>
+    <span>本月累计偏差考核安全边际 <b class="up">96.4%</b>，未触发红线</span>
+  </div>
+
+  <!-- ============ HERO METRICS ============ -->
+  <div class="hero-row">
+    <div class="hero-card money">
+      <div class="glow" style="background:var(--gold);"></div>
+      <div class="hero-top">
+        <span class="hero-label">电碳协同综合收益（今日）</span>
+        <div class="hero-icon" style="background:var(--gold-dim); color:var(--gold);">¥</div>
+      </div>
+      <div class="hero-value num">186,400<span class="unit">元</span></div>
+      <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none"><polyline points="0,22 20,20 40,21 60,17 80,14 100,15 120,10 140,8 160,6 180,4 200,3" fill="none" stroke="#E3B564" stroke-width="2"/></svg>
+      <div class="hero-sub">
+        <span class="hero-delta up">↑ 3.4% 环比昨日</span>
+        <span class="hero-note">电力价差+碳资产收益</span>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div class="glow" style="background:var(--power);"></div>
+      <div class="hero-top">
+        <span class="hero-label">负荷预测准确率 (MAPE)</span>
+        <div class="hero-icon" style="background:var(--power-dim); color:var(--power);">◎</div>
+      </div>
+      <div class="hero-value num">96.8<span class="unit">%</span></div>
+      <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none"><polyline points="0,10 20,9 40,12 60,8 80,7 100,9 120,6 140,7 160,5 180,6 200,4" fill="none" stroke="#35D6C4" stroke-width="2"/></svg>
+      <div class="hero-sub">
+        <span class="hero-delta up">↑ 0.4pct</span>
+        <span class="hero-note">XGBoost 短期预测模型</span>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div class="glow" style="background:var(--warn);"></div>
+      <div class="hero-top">
+        <span class="hero-label">偏差考核安全边际</span>
+        <div class="hero-icon" style="background:var(--warn-dim); color:var(--warn);">⚠</div>
+      </div>
+      <div class="hero-value num">96.4<span class="unit">%</span></div>
+      <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none"><polyline points="0,6 20,7 40,9 60,8 80,11 100,10 120,13 140,11 160,14 180,12 200,15" fill="none" stroke="#F0B94A" stroke-width="2"/></svg>
+      <div class="hero-sub">
+        <span class="hero-delta warn">当前偏差 3.6%（红线 ±4%）</span>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div class="glow" style="background:var(--power);"></div>
+      <div class="hero-top">
+        <span class="hero-label">今日绿电消纳率</span>
+        <div class="hero-icon" style="background:var(--power-dim); color:var(--power);">☀</div>
+      </div>
+      <div class="hero-value num">87.3<span class="unit">%</span></div>
+      <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none"><polyline points="0,20 20,18 40,15 60,16 80,12 100,10 120,8 140,6 160,7 180,5 200,3" fill="none" stroke="#35D6C4" stroke-width="2"/></svg>
+      <div class="hero-sub">
+        <span class="hero-delta up">↑ 4.5%</span>
+        <span class="hero-note">光伏自用占比 42%</span>
+      </div>
+    </div>
+
+    <div class="hero-card">
+      <div class="glow" style="background:var(--carbon);"></div>
+      <div class="hero-top">
+        <span class="hero-label">碳资产净头寸</span>
+        <div class="hero-icon" style="background:var(--carbon-dim); color:var(--carbon);">🌱</div>
+      </div>
+      <div class="hero-value num">+1,240<span class="unit">tCO₂</span></div>
+      <svg class="spark" viewBox="0 0 200 28" preserveAspectRatio="none"><polyline points="0,18 20,16 40,17 60,14 80,15 100,12 120,10 140,11 160,8 180,7 200,5" fill="none" stroke="#8FD16A" stroke-width="2"/></svg>
+      <div class="hero-sub">
+        <span class="hero-delta up">配额盈余</span>
+        <span class="hero-note">碳价 ¥68.5/tCO₂</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ COCKPIT GRID：左 | 中央地图 | 右 ============ -->
+  <div class="cockpit-grid">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-left">
+      <!-- 电力现货市场 -->
+      <div class="panel">
+        <div class="sec-head">
+          <div class="sec-title"><span class="bar" style="background:var(--power);"></span>电力现货市场<span class="tag" style="background:var(--power-dim); color:var(--power);">峰谷</span></div>
+          <div class="sec-meta">日前 / 实时</div>
+        </div>
+        <div class="mkt-stat-row">
+          <div class="mkt-stat"><div class="l">今日均价</div><div class="v">0.72<span style="font-size:10px;color:var(--text-3);">元/kWh</span></div></div>
+          <div class="mkt-stat"><div class="l">峰谷价差</div><div class="v" style="color:var(--gold);">0.58</div></div>
+          <div class="mkt-stat"><div class="l">套利收益</div><div class="v" style="color:var(--gold);">¥58.2k</div></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--blue);"></i>日前电价</span>
+          <span><i style="background:var(--gold);"></i>实时电价</span>
+        </div>
+        <svg viewBox="0 0 320 90" style="width:100%; height:96px;">
+          <g stroke="#1A212C" stroke-width="1">
+            <line x1="0" y1="15" x2="320" y2="15"/><line x1="0" y1="45" x2="320" y2="45"/><line x1="0" y1="75" x2="320" y2="75"/>
+          </g>
+          <polyline points="0,70 30,68 60,60 90,40 120,20 150,12 180,15 210,30 240,55 270,72 300,78 320,80" fill="none" stroke="#6FA8E0" stroke-width="1.8"/>
+          <polyline points="0,75 30,72 60,64 90,38 120,15 150,6 180,10 210,35 240,60 270,76 300,82 320,84" fill="none" stroke="#E3B564" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <!-- 接入设备列表 -->
+      <div class="panel">
+        <div class="sec-head">
+          <div class="sec-title"><span class="bar" style="background:var(--power);"></span>接入设备列表<span class="tag" style="background:var(--power-dim); color:var(--power);" id="devCountTag">12 台</span></div>
+          <div class="sec-meta">点击查看详情</div>
+        </div>
+        <div id="devList">
+          <!-- 由 JS 渲染 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: MAP -->
+    <div class="col-center">
+      <div class="map-panel">
+        <div class="map-head">
+          <div class="map-title">
+            <span class="bar"></span>
+            <span>源网荷储地理分布 · 设备态势</span>
+            <span class="tag">实时</span>
+          </div>
+          <div class="map-meta">已接入 <b style="color:var(--power);">128</b> 站点</div>
+        </div>
+        <!-- AI 自然语言搜索 -->
+        <div class="ai-search-overlay">
+          <div class="ai-search-box">
+            <span class="ai-search-badge">AI</span>
+            <input type="text" class="ai-search-input" id="aiSearchInput"
+              placeholder="输入自然语言定位客户地址，如：萧山储能电站"
+              autocomplete="off" />
+            <button class="ai-search-btn" id="aiSearchBtn">定位</button>
+          </div>
+          <div class="ai-search-results" id="aiSearchResults" style="display:none;"></div>
+          <div class="ai-search-hint">
+            <span>试试：</span>
+            <button class="hint-chip" data-query="萧山储能电站">萧山储能电站</button>
+            <button class="hint-chip" data-query="上海数据中心">上海数据中心</button>
+            <button class="hint-chip" data-query="浙江的光伏">浙江的光伏</button>
+            <button class="hint-chip" data-query="武汉">武汉</button>
+            <button class="hint-chip" data-query="北京">北京</button>
+          </div>
+        </div>
+        <div class="map-frame">
+          <!-- 原内层地图 iframe 已移除（§9.3-3）：新驾驶舱由 CockpitShell 直接挂载 CockpitMap，不再使用双层 iframe。 -->
+          <div class="deprecated-placeholder">驾驶舱已迁移至 Vue 子应用（/cockpit-v2/），本页仅为旧版原型参考。</div>
+        </div>
+        <div class="map-foot">
+          <span class="map-tab active">设备态势</span>
+          <span class="map-tab">负荷热力</span>
+          <span class="map-tab">调度轨迹</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-right">
+      <!-- 碳市场 -->
+      <div class="panel">
+        <div class="sec-head">
+          <div class="sec-title"><span class="bar" style="background:var(--carbon);"></span>碳市场行情<span class="tag" style="background:var(--carbon-dim); color:var(--carbon);">结算</span></div>
+          <div class="sec-meta">浙江碳配额</div>
+        </div>
+        <div class="mkt-stat-row">
+          <div class="mkt-stat"><div class="l">配额结算价</div><div class="v">68.5<span style="font-size:10px;color:var(--text-3);">元/t</span></div></div>
+          <div class="mkt-stat"><div class="l">今日减排量</div><div class="v" style="color:var(--carbon);">126.8t</div></div>
+        </div>
+        <svg viewBox="0 0 320 60" style="width:100%; height:64px;">
+          <g stroke="#1A212C" stroke-width="1">
+            <line x1="0" y1="15" x2="320" y2="15"/><line x1="0" y1="45" x2="320" y2="45"/>
+          </g>
+          <polyline points="0,55 40,50 80,42 120,32 160,22 200,15 240,10 280,6 320,3" fill="none" stroke="#8FD16A" stroke-width="2"/>
+        </svg>
+        <div class="carbon-list">
+          <div class="carbon-row"><span class="l">碳配额盈余</span><span class="v" style="color:var(--carbon);">+1,240 tCO₂</span></div>
+          <div class="carbon-row"><span class="l">CCER 持仓</span><span class="v">3,600 t</span></div>
+          <div class="carbon-row"><span class="l">碳资产估值</span><span class="v" style="color:var(--gold);">¥84,940</span></div>
+          <div class="carbon-row"><span class="l">本月交易建议</span><span class="v" style="color:var(--carbon);">择机出售 400t</span></div>
+        </div>
+      </div>
+
+      <!-- AI 决策建议 -->
+      <div class="panel">
+        <div class="sec-head">
+          <div class="sec-title"><span class="bar" style="background:var(--gold);"></span>AI 决策建议<span class="tag" style="background:var(--gold-dim); color:var(--gold);">可执行</span></div>
+          <div class="sec-meta">置信度排序</div>
+        </div>
+        <div class="ai-feed">
+          <div class="ai-item gold">
+            <div class="ai-item-top"><span class="ai-item-title">晚高峰储能释放</span><span class="ai-conf">置信度 92%</span></div>
+            <div class="ai-item-body">18:00–21:00 晚高峰，建议释放储能 8.6 MWh。</div>
+            <div class="ai-item-foot"><span class="ai-gain">预计节省 ¥42,800</span><button class="btn-mini">一键下发</button></div>
+          </div>
+          <div class="ai-item">
+            <div class="ai-item-top"><span class="ai-item-title">光伏消纳提升</span><span class="ai-conf">置信度 88%</span></div>
+            <div class="ai-item-body">13:00–15:00 光伏出力高于负荷，建议提高充电桩功率。</div>
+            <div class="ai-item-foot"><span class="ai-gain">消纳 ↑6.4%</span><button class="btn-mini">一键下发</button></div>
+          </div>
+          <div class="ai-item" style="border-left-color:var(--alert);">
+            <div class="ai-item-top"><span class="ai-item-title">AIDC 需量控制预警</span><span class="ai-conf">置信度 95%</span></div>
+            <div class="ai-item-body">滨江 AIDC 站预计 20:00 负荷达 6.8MW，建议提前启动需量控制。</div>
+            <div class="ai-item-foot"><span class="ai-gain" style="color:var(--alert);">规避超限风险</span><button class="btn-mini">一键下发</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 告警队列 -->
+      <div class="panel">
+        <div class="sec-head">
+          <div class="sec-title"><span class="bar" style="background:var(--alert);"></span>告警队列<span class="tag" style="background:var(--alert-dim); color:var(--alert);">2 高危</span></div>
+          <div class="sec-meta">实时</div>
+        </div>
+        <div>
+          <div class="alert-item">
+            <div class="alert-sev high"></div>
+            <div class="alert-txt"><div class="t">武汉储能 SOC 偏低</div><div class="m">当前 SOC 18%，建议充电</div></div>
+            <div class="alert-time">2分钟前</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-sev mid"></div>
+            <div class="alert-txt"><div class="t">上海 AIDC 需量逼近上限</div><div class="m">预计 20:00 超容量 92%</div></div>
+            <div class="alert-time">14分钟前</div>
+          </div>
+          <div class="alert-item">
+            <div class="alert-sev low"></div>
+            <div class="alert-txt"><div class="t">3 个充电桩离线</div><div class="m">萧山站，通信超时</div></div>
+            <div class="alert-time">1小时前</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ 资产台账 ============ -->
+  <div class="sec-head" style="margin-top:2px;">
+    <div class="sec-title" style="color:var(--text-3); font-weight:500;"><span class="bar" style="background:var(--text-3);"></span>资产总览</div>
+  </div>
+  <div class="asset-strip">
+    <div class="asset-chip"><div class="ic">🏭</div><div><div class="v">128</div><div class="l">接入站点数</div></div></div>
+    <div class="asset-chip"><div class="ic">☀</div><div><div class="v">86.5MW</div><div class="l">新能源装机</div></div></div>
+    <div class="asset-chip"><div class="ic">🔋</div><div><div class="v">42.8MWh</div><div class="l">储能接入容量</div></div></div>
+    <div class="asset-chip"><div class="ic">🔌</div><div><div class="v">18,620</div><div class="l">充电终端数量</div></div></div>
+    <div class="asset-chip"><div class="ic">✓</div><div><div class="v">98.7%</div><div class="l">设备在线率</div></div></div>
+    <div class="asset-chip"><div class="ic">◎</div><div><div class="v">96.2%</div><div class="l">AI调度执行率</div></div></div>
+  </div>
+
+  <!-- ============ 设备详情弹窗 ============ -->
+  <div class="detail-mask" id="detailMask">
+    <div class="detail-card" id="detailCard">
+      <div class="detail-head">
+        <div class="detail-title">
+          <span class="dot" id="detailDot"></span>
+          <span id="detailName">设备名称</span>
+        </div>
+        <button class="detail-close" type="button" onclick="closeDetail()" aria-label="关闭">×</button>
+      </div>
+      <div class="detail-meta">
+        <span class="detail-id" id="detailId">--</span>
+        <span class="detail-tag" id="detailType">--</span>
+        <span class="detail-region" id="detailRegion" style="color:var(--text-3);">--</span>
+        <span class="detail-status" id="detailStatus">--</span>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-cell">
+          <div class="detail-label">负荷率</div>
+          <div class="detail-value num" id="detailLoad">--<span class="unit">%</span></div>
+          <div class="detail-bar"><span id="detailLoadBar" style="background:var(--power);"></span></div>
+        </div>
+        <div class="detail-cell">
+          <div class="detail-label">当前功率</div>
+          <div class="detail-value num" id="detailPower">--<span class="unit">MW</span></div>
+          <div class="detail-bar"><span id="detailPowerBar" style="background:var(--carbon);"></span></div>
+        </div>
+        <div class="detail-cell" id="detailSocCell" style="display:none;">
+          <div class="detail-label">储能 SOC</div>
+          <div class="detail-value num" id="detailSoc">--<span class="unit">%</span></div>
+          <div class="detail-bar"><span id="detailSocBar" style="background:var(--warn);"></span></div>
+        </div>
+        <div class="detail-cell full">
+          <div class="detail-label">今日贡献收益</div>
+          <div class="detail-value num" id="detailRevenue" style="color:var(--gold);">¥--</div>
+        </div>
+      </div>
+      <div class="detail-foot">
+        <button class="detail-btn" type="button">查看实时曲线</button>
+        <button class="detail-btn primary" type="button">下发调度</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * 默认设备数据。
+ * 与 Vue 端 EmbedMap.vue 的 devices 数组保持一致（或通过 postMessage 同步）。
+ * 接入真实数据时，替换此数组即可，结构与 src/components/embed/types.ts Device 接口一致。
+ */
+const DEVICES = [
+  { id: 'ESS-HZ-01', name: '萧山储能电站', lng: 120.27, lat: 30.16, type: 'energy-storage', status: 'online', load: 0.86, power: 4.2, soc: 0.72, revenue: 12400, region: '浙江省' },
+  { id: 'PV-WZ-02', name: '温州光伏 A 区', lng: 120.65, lat: 27.99, type: 'photovoltaic', status: 'online', load: 0.58, power: 2.8, soc: null, revenue: 9200, region: '浙江省' },
+  { id: 'CP-SH-03', name: '上海数据中心 AIDC', lng: 121.47, lat: 31.23, type: 'data-center', status: 'warning', load: 0.88, power: 6.8, soc: null, revenue: 15600, region: '上海市' },
+  { id: 'ESS-NB-04', name: '宁波储能集群', lng: 121.55, lat: 29.86, type: 'energy-storage', status: 'online', load: 0.76, power: 3.6, soc: 0.85, revenue: 8900, region: '浙江省' },
+  { id: 'CP-JN-05', name: '济南充电站', lng: 117.00, lat: 36.65, type: 'charging', status: 'online', load: 0.42, power: 1.4, soc: null, revenue: 4120, region: '山东省' },
+  { id: 'ESS-CD-06', name: '成都储能电站', lng: 104.07, lat: 30.67, type: 'energy-storage', status: 'online', load: 0.68, power: 3.0, soc: 0.60, revenue: 7500, region: '四川省' },
+  { id: 'CP-GZ-07', name: '广州光储充一体', lng: 113.26, lat: 23.13, type: 'charging', status: 'online', load: 0.55, power: 2.2, soc: null, revenue: 6800, region: '广东省' },
+  { id: 'PV-XA-08', name: '西安光伏电站', lng: 108.94, lat: 34.34, type: 'photovoltaic', status: 'online', load: 0.63, power: 3.2, soc: null, revenue: 5800, region: '陕西省' },
+  { id: 'ESS-WH-09', name: '武汉储能电站', lng: 114.30, lat: 30.59, type: 'energy-storage', status: 'alert', load: 0.94, power: 4.8, soc: 0.18, revenue: 11200, region: '湖北省' },
+  { id: 'CP-CQ-10', name: '重庆充电枢纽', lng: 106.55, lat: 29.56, type: 'charging', status: 'online', load: 0.48, power: 1.8, soc: null, revenue: 5200, region: '重庆市' },
+  { id: 'PV-BJ-11', name: '北京光伏集群', lng: 116.40, lat: 39.90, type: 'photovoltaic', status: 'online', load: 0.71, power: 3.5, soc: null, revenue: 9800, region: '北京市' },
+  { id: 'ESS-TJ-12', name: '天津储能电站', lng: 117.20, lat: 39.13, type: 'energy-storage', status: 'online', load: 0.82, power: 4.0, soc: 0.78, revenue: 10200, region: '天津市' },
+];
+
+const TYPE_LABEL = {
+  'energy-storage': '储能',
+  'photovoltaic': '光伏',
+  'charging': '充电',
+  'data-center': '数据中心',
+  'wind': '风电',
+};
+
+const STATUS_LABEL = {
+  online: '在线',
+  warning: '关注',
+  alert: '告警',
+  offline: '离线',
+};
+
+const STATUS_COLOR = {
+  online: '#35D6C4',
+  warning: '#F0B94A',
+  alert: '#FF6B5E',
+  offline: '#5C6A7D',
+};
+
+function renderDeviceList() {
+  const el = document.getElementById('devList');
+  if (!el) return;
+  el.innerHTML = DEVICES.map((d) => `
+    <div class="dev-row" data-id="${d.id}" onclick="openDeviceDetail('${d.id}')">
+      <span class="dev-dot status-${d.status}"></span>
+      <div class="dev-info">
+        <div class="dev-name">${d.name}</div>
+        <div class="dev-region">${d.region} · ${TYPE_LABEL[d.type] || d.type}</div>
+      </div>
+      <div class="dev-load">
+        <span class="bar-mini"><i style="width:${(d.load * 100).toFixed(0)}%; background:${STATUS_COLOR[d.status]};"></i></span>
+        <span class="num">${(d.load * 100).toFixed(0)}%</span>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('devCountTag').textContent = `${DEVICES.length} 台`;
+}
+
+function findDevice(id) {
+  return DEVICES.find((d) => d.id === id);
+}
+
+function openDeviceDetail(id) {
+  const d = findDevice(id);
+  if (!d) return;
+  const mask = document.getElementById('detailMask');
+  document.getElementById('detailName').textContent = d.name;
+  document.getElementById('detailId').textContent = d.id;
+  document.getElementById('detailType').textContent = TYPE_LABEL[d.type] || d.type;
+  document.getElementById('detailRegion').textContent = d.region;
+  document.getElementById('detailStatus').textContent = STATUS_LABEL[d.status] || d.status;
+  document.getElementById('detailStatus').className = 'detail-status status-' + d.status;
+  document.getElementById('detailDot').className = 'dot status-' + d.status;
+
+  document.getElementById('detailLoad').innerHTML = (d.load * 100).toFixed(0) + '<span class="unit">%</span>';
+  document.getElementById('detailLoadBar').style.width = (d.load * 100).toFixed(0) + '%';
+  document.getElementById('detailPower').innerHTML = d.power.toFixed(1) + '<span class="unit">MW</span>';
+  document.getElementById('detailPowerBar').style.width = Math.min(d.power / 8, 1) * 100 + '%';
+
+  const socCell = document.getElementById('detailSocCell');
+  if (d.soc !== null && d.soc !== undefined) {
+    socCell.style.display = '';
+    document.getElementById('detailSoc').innerHTML = (d.soc * 100).toFixed(0) + '<span class="unit">%</span>';
+    document.getElementById('detailSocBar').style.width = (d.soc * 100).toFixed(0) + '%';
+  } else {
+    socCell.style.display = 'none';
+  }
+  document.getElementById('detailRevenue').textContent = '¥' + d.revenue.toLocaleString('zh-CN');
+
+  mask.classList.add('is-open');
+}
+
+function closeDetail() {
+  document.getElementById('detailMask').classList.remove('is-open');
+}
+
+// 监听 iframe 内 Vue 地图发送的设备点击事件
+window.addEventListener('message', function (event) {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'cockpit:device-click' && data.device && data.device.id) {
+    openDeviceDetail(data.device.id);
+  }
+});
+
+// 点击遮罩关闭
+document.getElementById('detailMask').addEventListener('click', function (e) {
+  if (e.target === this) closeDetail();
+});
+
+// Esc 关闭
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeDetail();
+});
+
+renderDeviceList();
+
+// ===== AI 自然语言定位引擎 =====
+
+// 中国主要城市 / 省份坐标数据库（含别名）
+const CITY_DB = [
+  // 直辖市 / 省会
+  { name: '北京', aliases: ['北京市', '京城'], lng: 116.40, lat: 39.90, region: '北京市' },
+  { name: '上海', aliases: ['上海市'], lng: 121.47, lat: 31.23, region: '上海市' },
+  { name: '天津', aliases: ['天津市'], lng: 117.20, lat: 39.13, region: '天津市' },
+  { name: '重庆', aliases: ['重庆市'], lng: 106.55, lat: 29.56, region: '重庆市' },
+  { name: '广州', aliases: ['广州市', '羊城'], lng: 113.26, lat: 23.13, region: '广东省' },
+  { name: '成都', aliases: ['成都市', '蓉城'], lng: 104.07, lat: 30.67, region: '四川省' },
+  { name: '武汉', aliases: ['武汉市', '江城'], lng: 114.30, lat: 30.59, region: '湖北省' },
+  { name: '西安', aliases: ['西安市', '长安'], lng: 108.94, lat: 34.34, region: '陕西省' },
+  { name: '济南', aliases: ['济南市', '泉城'], lng: 117.00, lat: 36.65, region: '山东省' },
+  { name: '杭州', aliases: ['杭州市'], lng: 120.15, lat: 30.27, region: '浙江省' },
+  // 设备所在城市
+  { name: '萧山', aliases: ['萧山区'], lng: 120.27, lat: 30.16, region: '浙江省' },
+  { name: '温州', aliases: ['温州市', '鹿城'], lng: 120.65, lat: 27.99, region: '浙江省' },
+  { name: '宁波', aliases: ['宁波市', '甬城'], lng: 121.55, lat: 29.86, region: '浙江省' },
+  // 其他主要城市
+  { name: '深圳', aliases: ['深圳市', '鹏城'], lng: 114.05, lat: 22.55, region: '广东省' },
+  { name: '南京', aliases: ['南京市', '金陵'], lng: 118.78, lat: 32.07, region: '江苏省' },
+  { name: '青岛', aliases: ['青岛市'], lng: 120.38, lat: 36.07, region: '山东省' },
+  { name: '大连', aliases: ['大连市'], lng: 121.62, lat: 38.91, region: '辽宁省' },
+  { name: '苏州', aliases: ['苏州市'], lng: 120.58, lat: 31.30, region: '江苏省' },
+  { name: '合肥', aliases: ['合肥市'], lng: 117.27, lat: 31.86, region: '安徽省' },
+  { name: '郑州', aliases: ['郑州市'], lng: 113.62, lat: 34.75, region: '河南省' },
+  { name: '长沙', aliases: ['长沙市'], lng: 112.93, lat: 28.23, region: '湖南省' },
+  { name: '昆明', aliases: ['昆明市', '春城'], lng: 102.72, lat: 25.04, region: '云南省' },
+  // 省份级别
+  { name: '浙江', aliases: ['浙江省'], lng: 120.15, lat: 30.27, region: '浙江省' },
+  { name: '广东', aliases: ['广东省'], lng: 113.26, lat: 23.13, region: '广东省' },
+  { name: '山东', aliases: ['山东省'], lng: 117.00, lat: 36.65, region: '山东省' },
+  { name: '四川', aliases: ['四川省'], lng: 104.07, lat: 30.67, region: '四川省' },
+  { name: '陕西', aliases: ['陕西省'], lng: 108.94, lat: 34.34, region: '陕西省' },
+  { name: '湖北', aliases: ['湖北省'], lng: 114.30, lat: 30.59, region: '湖北省' },
+  { name: '江苏', aliases: ['江苏省'], lng: 118.78, lat: 32.07, region: '江苏省' },
+  { name: '辽宁', aliases: ['辽宁省'], lng: 121.62, lat: 38.91, region: '辽宁省' },
+];
+
+// 设备类型关键词映射
+const TYPE_KEYWORDS = {
+  '储能': { type: 'energy-storage', label: '储能' },
+  '储能电站': { type: 'energy-storage', label: '储能' },
+  '光伏': { type: 'photovoltaic', label: '光伏' },
+  '光伏电站': { type: 'photovoltaic', label: '光伏' },
+  '充电': { type: 'charging', label: '充电' },
+  '充电桩': { type: 'charging', label: '充电' },
+  '充电站': { type: 'charging', label: '充电' },
+  '数据中心': { type: 'data-center', label: '数据中心' },
+  'AIDC': { type: 'data-center', label: '数据中心' },
+  '风电': { type: 'wind', label: '风电' },
+};
+
+// 意图关键词（会被移除以提取核心实体）
+const ACTION_WORDS = /找到|定位|查看|显示|搜索|查找|看下|去看看|去|飞到|导航/g;
+
+/**
+ * 自然语言解析：从用户输入中提取位置和设备类型
+ * 支持：
+ *   "萧山储能电站" → 设备名匹配
+ *   "上海数据中心" → 设备名匹配
+ *   "浙江的光伏" → 地区 + 类型过滤
+ *   "武汉" → 城市匹配
+ *   "北京" → 城市匹配
+ *   "所有储能" → 类型过滤
+ */
+function parseQuery(query) {
+  query = query.trim();
+  if (!query) return [];
+  const queryLower = query.toLowerCase();
+
+  // 提取设备类型过滤
+  let typeFilter = null;
+  let typeLabel = '';
+  for (const [keyword, info] of Object.entries(TYPE_KEYWORDS)) {
+    if (queryLower.includes(keyword.toLowerCase())) {
+      typeFilter = info.type;
+      typeLabel = info.label;
+      break;
+    }
+  }
+
+  // 提取位置关键词
+  let cityMatch = null;
+  for (const city of CITY_DB) {
+    const allNames = [city.name, ...(city.aliases || [])];
+    // 长名优先匹配（避免"广州"被"广东省"抢先）
+    allNames.sort((a, b) => b.length - a.length);
+    for (const name of allNames) {
+      if (queryLower.includes(name.toLowerCase())) {
+        cityMatch = city;
+        break;
+      }
+    }
+    if (cityMatch) break;
+  }
+
+  const results = [];
+  const seenIds = new Set();
+
+  // 1. 设备名直接匹配（最高优先级）
+  for (const dev of DEVICES) {
+    const parts = dev.name.split(/[\sA-Z]+/).filter(function (p) { return p.length >= 2; });
+    let matched = false;
+    for (const part of parts) {
+      if (queryLower.includes(part.toLowerCase())) { matched = true; break; }
+    }
+    if (queryLower.includes(dev.name.toLowerCase())) matched = true;
+    if (!matched) continue;
+    if (typeFilter && dev.type !== typeFilter) continue;
+    if (seenIds.has(dev.id)) continue;
+    seenIds.add(dev.id);
+    results.push({ type: 'device', device: dev, lng: dev.lng, lat: dev.lat, name: dev.name, region: dev.region, score: 100 });
+  }
+
+  // 2. 位置 + 类型/设备匹配
+  if (cityMatch) {
+    const devicesInLocation = DEVICES.filter(function (d) {
+      return d.region === cityMatch.region || d.name.includes(cityMatch.name);
+    });
+    const filtered = typeFilter ? devicesInLocation.filter(function (d) { return d.type === typeFilter; }) : devicesInLocation;
+    filtered.forEach(function (dev) {
+      if (seenIds.has(dev.id)) return;
+      seenIds.add(dev.id);
+      results.push({ type: 'device', device: dev, lng: dev.lng, lat: dev.lat, name: dev.name, region: dev.region, score: 80 });
+    });
+    // 没有设备但有城市 → 返回城市坐标
+    if (results.length === 0) {
+      results.push({ type: 'city', lng: cityMatch.lng, lat: cityMatch.lat, name: cityMatch.name, region: cityMatch.region, score: 60 });
+    }
+  }
+
+  // 3. 纯地区匹配（设备 region 包含查询关键词）
+  if (results.length === 0 && !cityMatch) {
+    const cleaned = queryLower.replace(ACTION_WORDS, '').replace(/的|所有|全部|市区?|省|市|自治区|特别行政区/g, '').trim();
+    if (cleaned) {
+      for (const dev of DEVICES) {
+        if (dev.region.toLowerCase().includes(cleaned) || cleaned.includes(dev.region.toLowerCase().replace(/省|市|自治区|特别行政区/g, ''))) {
+          if (typeFilter && dev.type !== typeFilter) continue;
+          if (seenIds.has(dev.id)) continue;
+          seenIds.add(dev.id);
+          results.push({ type: 'device', device: dev, lng: dev.lng, lat: dev.lat, name: dev.name, region: dev.region, score: 50 });
+        }
+      }
+    }
+  }
+
+  // 4. 纯类型匹配（无位置）
+  if (results.length === 0 && typeFilter) {
+    DEVICES.filter(function (d) { return d.type === typeFilter; }).forEach(function (dev) {
+      if (seenIds.has(dev.id)) return;
+      seenIds.add(dev.id);
+      results.push({ type: 'device', device: dev, lng: dev.lng, lat: dev.lat, name: dev.name, region: dev.region, score: 40 });
+    });
+  }
+
+  return results.sort(function (a, b) { return b.score - a.score; });
+}
+
+function getDeviceIcon(type) {
+  const icons = { 'energy-storage': '🔋', 'photovoltaic': '☀', 'charging': '🔌', 'data-center': '🖥', 'wind': '🌬' };
+  return icons[type] || '📍';
+}
+
+function renderSearchResults(results) {
+  const el = document.getElementById('aiSearchResults');
+  if (!el) return;
+
+  if (results.length === 0) {
+    el.innerHTML = '<div class="ai-result-empty">未找到匹配的客户地址，试试输入城市名或设备名称</div>';
+    el.style.display = 'block';
+    return;
+  }
+
+  el.innerHTML = results.map(function (r) {
+    var icon = r.type === 'device' ? getDeviceIcon(r.device.type) : '📍';
+    var meta = r.type === 'device'
+      ? (TYPE_LABEL[r.device.type] || r.device.type) + ' · ' + r.region
+      : '城市定位 · ' + r.region;
+    var coord = r.lng.toFixed(2) + ', ' + r.lat.toFixed(2);
+    return '<div class="ai-result-item" data-lng="' + r.lng + '" data-lat="' + r.lat + '" data-name="' + r.name + '" data-region="' + (r.region || '') + '"' +
+      (r.device ? ' data-dev-id="' + r.device.id + '"' : '') + '>' +
+      '<div class="ai-result-icon">' + icon + '</div>' +
+      '<div class="ai-result-info"><div class="ai-result-name">' + r.name + '</div>' +
+      '<div class="ai-result-meta">' + meta + '</div></div>' +
+      '<div class="ai-result-coord">' + coord + '</div>' +
+      '</div>';
+  }).join('');
+
+  el.style.display = 'block';
+
+  // 点击结果项执行定位
+  el.querySelectorAll('.ai-result-item').forEach(function (item) {
+    item.addEventListener('click', function () {
+      var lng = parseFloat(this.dataset.lng);
+      var lat = parseFloat(this.dataset.lat);
+      var name = this.dataset.name || '';
+      var devId = this.dataset.devId;
+      executeLocate(lng, lat, name, devId, this.dataset.region || '');
+      el.style.display = 'none';
+    });
+  });
+}
+
+function executeLocate(lng, lat, name, devId, region) {
+  var iframe = document.getElementById('mapFrame');
+  if (!iframe || !iframe.contentWindow) return;
+  iframe.contentWindow.postMessage({
+    type: 'cockpit:ai-locate',
+    lng: lng,
+    lat: lat,
+    name: name,
+    region: region || '',
+  }, '*');
+
+  // 在设备列表中高亮
+  if (devId) highlightDeviceRow(devId);
+}
+
+function highlightDeviceRow(devId) {
+  document.querySelectorAll('.dev-row').forEach(function (row) {
+    row.style.boxShadow = '';
+    row.style.background = '';
+  });
+  var row = document.querySelector('.dev-row[data-id="' + devId + '"]');
+  if (row) {
+    row.style.background = 'rgba(53,214,196,0.12)';
+    row.style.boxShadow = 'inset 3px 0 0 var(--power)';
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(function () {
+      row.style.background = '';
+      row.style.boxShadow = '';
+    }, 4000);
+  }
+}
+
+function handleSearch() {
+  var input = document.getElementById('aiSearchInput');
+  if (!input) return;
+  var query = input.value.trim();
+  if (!query) return;
+  var results = parseQuery(query);
+  renderSearchResults(results);
+  // 只有一个结果时自动执行
+  if (results.length === 1) {
+    var r = results[0];
+    executeLocate(r.lng, r.lat, r.name, r.device ? r.device.id : null, r.region || '');
+    document.getElementById('aiSearchResults').style.display = 'none';
+  }
+}
+
+// 事件绑定
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.getElementById('aiSearchInput');
+  var btn = document.getElementById('aiSearchBtn');
+
+  if (btn) btn.addEventListener('click', handleSearch);
+  if (input) {
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') handleSearch();
+    });
+    input.addEventListener('input', function () {
+      // 输入时实时搜索（仅在有 2+ 字符时）
+      var q = this.value.trim();
+      if (q.length >= 2) {
+        var results = parseQuery(q);
+        if (results.length > 0) {
+          renderSearchResults(results);
+        } else {
+          document.getElementById('aiSearchResults').style.display = 'none';
+        }
+      } else {
+        document.getElementById('aiSearchResults').style.display = 'none';
+      }
+    });
+    input.addEventListener('focus', function () {
+      if (this.value.trim().length >= 2) {
+        var results = parseQuery(this.value.trim());
+        if (results.length > 0) renderSearchResults(results);
+      }
+    });
+  }
+
+  // 点击其他区域关闭结果
+  document.addEventListener('click', function (e) {
+    var overlay = document.getElementById('aiSearchOverlay');
+    var results = document.getElementById('aiSearchResults');
+    if (overlay && !overlay.contains(e.target) && results) {
+      results.style.display = 'none';
+    }
+  });
+
+  // 建议词点击
+  document.querySelectorAll('.hint-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var q = this.dataset.query;
+      if (input && q) {
+        input.value = q;
+        handleSearch();
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
+

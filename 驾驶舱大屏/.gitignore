@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.skill_source/
+.vite/
+*.local
+
+# 子应用入口 HTML（覆盖仓库根 .gitignore 的 *.html 规则，构建必需）
+!index.html
